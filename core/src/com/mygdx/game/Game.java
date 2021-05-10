@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 public class Game extends ApplicationAdapter {
+	//Variaveis globais//
 	SpriteBatch batch;
 	Texture passaro;
 	Texture fundo;
@@ -19,6 +20,7 @@ public class Game extends ApplicationAdapter {
 	
 	@Override
 	public void create () {
+		//Criando objetos em cena//
 		batch = new SpriteBatch();
 		fundo = new Texture("fundo.png");
 		passaro = new Texture("passaro1.png");
@@ -29,12 +31,15 @@ public class Game extends ApplicationAdapter {
 	}
 
 	@Override
+
 	public void render () {
 		batch.begin();
 
+		//Definindo posição e formato dos objetos//
 		batch.draw(fundo, 0, 0, larguraDispositivo, alturaDispositivo);
 		batch.draw(passaro, movimentaX, movimentaY);
 
+		//adicionando movimentação//
 		movimentaX++;
 		movimentaY++;
 		batch.end();
