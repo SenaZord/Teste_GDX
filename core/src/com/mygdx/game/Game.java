@@ -2,6 +2,8 @@ package com.mygdx.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
+import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
@@ -25,11 +27,13 @@ public class Game extends ApplicationAdapter {
 
 	private int estadoJogo = 0;
 	private int pontos = 0;
+	private int pontuacaoMaxima = 0;
 	private int gravidade = 2;
 	private float variacao = 0;
 	private float posicaoInicialVerticalPassaro = 0;
 	private float posicaoCanoHorizontal;
 	private float posicaoCanoVertical;
+	private float posicaoHorizontalPassaro = 0;
 	private float espacoEntreCanos;
 	private float larguraDispositivo;
 	private float alturaDispositivo;
@@ -39,6 +43,12 @@ public class Game extends ApplicationAdapter {
 	BitmapFont textoPontuacao;
 	BitmapFont textoReiniciar;
 	BitmapFont textoMelhorPontuacao;
+
+	Sound somVoando;
+	Sound somColisao;
+	Sound somPontuacao;
+
+	Preferences preferencias;
 
 	private ShapeRenderer shapeRenderer;
 	private Circle circuloPassaro;
@@ -87,6 +97,15 @@ public class Game extends ApplicationAdapter {
 		retanguloCanoCima = new Rectangle();
 		retanguloCanoBaixo = new Rectangle();
 
+		//Definindo sons//
+		somVoando = Gdx.audio.newSound(Gdx.files.internal("som_asa.wav"));
+		somColisao = Gdx.audio.newSound(Gdx.files.internal("som_batida.wav"));
+		somPontuacao = Gdx.audio.newSound(Gdx.files.internal("som_pontos.wav"));
+
+		//Definindo pontuação maxima a salvar//
+		preferencias = Gdx.app.getPreferences("flappyBird");
+		pontuacaoMaxima = preferencias.getInteger("pontuacaoMaxima", 0);
+
 	}
 
 	private void inicializaTexturas() {
@@ -121,6 +140,7 @@ public class Game extends ApplicationAdapter {
 			if(!passouCano){
 				pontos++;
 				passouCano = true;
+				somPontuacao.play();
 			}
 		}
 		//adicionando variação entre animações//
@@ -131,14 +151,14 @@ public class Game extends ApplicationAdapter {
 
 	private void detectarColisao() {
 
-		//Checando a posiçãoe raio de colisão do Passaro e dos canos//
+		//Checando a posição e raio de colisão do Passaro e dos canos//
 		circuloPassaro.set(50 + passaros[0].getWidth() / 2,
 				posicaoInicialVerticalPassaro + passaros[0].getHeight() / 2, passaros[0].getWidth() / 2);
 
 
 		retanguloCanoBaixo.set(posicaoCanoHorizontal,
-				alturaDispositivo / 2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical, canoBaixo.getWidth(),
-				canoBaixo.getHeight());
+				alturaDispositivo / 2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical,
+				canoBaixo.getWidth(), canoBaixo.getHeight());
 
 		retanguloCanoCima.set(posicaoCanoHorizontal,
 				alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical,
@@ -148,26 +168,34 @@ public class Game extends ApplicationAdapter {
 		boolean bateuCanoCima = Intersector.overlaps(circuloPassaro, retanguloCanoCima);
 		boolean bateuCanoBaixo = Intersector.overlaps(circuloPassaro, retanguloCanoBaixo);
 
-		if(bateuCanoBaixo || bateuCanoCima){
-			Gdx.app.log("Log", "Bateu");
-			estadoJogo = 2;
+		//Ao bater no cano, segue para GameOver//
+		if (bateuCanoBaixo || bateuCanoCima) {
+			if (estadoJogo == 1) {
+				somColisao.play();
+				estadoJogo = 2;
+			}
 		}
 	}
 
 	private void verificaEstadoJogo() {
 
-		//adicionando regra de botão ao tocar na tela variando estados//
+		//adicionando regra no botão e sons//
 		boolean toqueTela = Gdx.input.justTouched();
 		if(estadoJogo == 0) {
 
+			//iniciando jogo//
 			if (Gdx.input.justTouched()) {
-				gravidade = -25;
+				gravidade = -15;
 				estadoJogo = 1;
+				somVoando.play();
 			}
+			//Ao decorrer do jogo//
 		}else if(estadoJogo == 1){
 
 				if(Gdx.input.justTouched()) {
-					gravidade = -25;
+					gravidade = -15;
+					estadoJogo = 1;
+					somVoando.play();
 				}
 
 				//Configurando regra para canos conforme o jogo passa//
@@ -182,7 +210,26 @@ public class Game extends ApplicationAdapter {
 
 				gravidade++;
 			}
+
 				else if(estadoJogo == 2){
+
+					//Definindo nova pontuação máxima
+					if(pontos > pontuacaoMaxima){
+						pontuacaoMaxima = pontos;
+						preferencias.putInteger("pontuacaoMaxima", pontuacaoMaxima);
+					}
+
+					posicaoHorizontalPassaro -=Gdx.graphics.getDeltaTime()*500;
+
+					//reiniciando jogo//
+					if(toqueTela){
+						estadoJogo = 0;
+						pontos = 0;
+						gravidade = 0;
+						posicaoHorizontalPassaro = 0;
+						posicaoCanoVertical = alturaDispositivo / 2;
+						posicaoCanoHorizontal = larguraDispositivo;
+					}
 
 				}
 		}
@@ -194,17 +241,17 @@ public class Game extends ApplicationAdapter {
 		batch.begin();
 
 		batch.draw(fundo, 0, 0, larguraDispositivo, alturaDispositivo);
-		batch.draw(passaros[(int)variacao],50,posicaoInicialVerticalPassaro);
+		batch.draw(passaros[(int)variacao],50 + posicaoHorizontalPassaro, posicaoInicialVerticalPassaro);
 		batch.draw(canoBaixo,posicaoCanoHorizontal,
 				alturaDispositivo / 2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical);
 		batch.draw(canoTopo, posicaoCanoHorizontal, alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical);
 		textoPontuacao.draw(batch, String.valueOf(pontos), larguraDispositivo / 2, alturaDispositivo - 100);
 
-		//Apos colisão, carrega mensagens pós gameOver//
+		//Apos colisão, carrega mensagens//
 		if(estadoJogo == 2){
 			batch.draw(gameOver,larguraDispositivo / 2 - gameOver.getWidth() / 2, alturaDispositivo / 2);
 			textoReiniciar.draw(batch, "TOQUE NA TELA PARA REINICIAR!", larguraDispositivo / 2 - 350, alturaDispositivo / 2 - gameOver.getHeight() / 2);
-			textoMelhorPontuacao.draw(batch, "SUA MELHOR PONTUAÇÃO É : 0 PONTOS!", larguraDispositivo / 2 - 450, alturaDispositivo / 2 - gameOver.getHeight());
+			textoMelhorPontuacao.draw(batch, "SUA MELHOR PONTUAÇÃO É: " + pontuacaoMaxima +" PONTOS!", larguraDispositivo / 2 - 400, alturaDispositivo / 2 - gameOver.getHeight() *2);
 		}
 		batch.end();
 	}
