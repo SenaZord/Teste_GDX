@@ -21,9 +21,11 @@ public class Game extends ApplicationAdapter {
 	private Texture fundo;
 	private Texture canoTopo;
 	private Texture canoBaixo;
+	private Texture gameOver;
 
+	private int estadoJogo = 0;
 	private int pontos = 0;
-	private int gravidade = 0;
+	private int gravidade = 2;
 	private float variacao = 0;
 	private float posicaoInicialVerticalPassaro = 0;
 	private float posicaoCanoHorizontal;
@@ -31,14 +33,18 @@ public class Game extends ApplicationAdapter {
 	private float espacoEntreCanos;
 	private float larguraDispositivo;
 	private float alturaDispositivo;
-	BitmapFont textoPontuacao;
 	private boolean passouCano = false;
 	private Random random;
+
+	BitmapFont textoPontuacao;
+	BitmapFont textoReiniciar;
+	BitmapFont textoMelhorPontuacao;
 
 	private ShapeRenderer shapeRenderer;
 	private Circle circuloPassaro;
 	private Rectangle retanguloCanoCima;
 	private Rectangle retanguloCanoBaixo;
+
 	@Override
 	public void create () {
 		//Criando texturas em cena//
@@ -46,12 +52,10 @@ public class Game extends ApplicationAdapter {
 		//Criando objetos em cena//
 		inicializaObjetos();
 
-
-
 	}
 
 	private void inicializaObjetos() {
-
+		//variaveis internas//
 		random = new Random();
 		batch = new SpriteBatch();
 
@@ -62,10 +66,20 @@ public class Game extends ApplicationAdapter {
 		posicaoCanoHorizontal = larguraDispositivo;
 		espacoEntreCanos = 350;
 
-		//Definindo textos em tela//
+		//Definindo textoPontuacao em tela//
 		textoPontuacao = new BitmapFont();
 		textoPontuacao.setColor(Color.WHITE);
 		textoPontuacao.getData().setScale(10);
+
+		//Definindo texto em tela//
+		textoReiniciar = new BitmapFont();
+		textoReiniciar.setColor(Color.GREEN);
+		textoReiniciar.getData().setScale(3);
+
+		//Definindo texto em tela//
+		textoMelhorPontuacao = new BitmapFont();
+		textoMelhorPontuacao.setColor(Color.RED);
+		textoMelhorPontuacao.getData().setScale(3);
 
 		//Transformando formas em sprites//
 		shapeRenderer = new ShapeRenderer();
@@ -86,6 +100,7 @@ public class Game extends ApplicationAdapter {
 		fundo = new Texture("fundo.png");
 		canoBaixo = new Texture("cano_baixo_maior.png");
 		canoTopo = new Texture("cano_topo_maior.png");
+		gameOver = new Texture("game_over.png");
 
 	}
 
@@ -108,11 +123,15 @@ public class Game extends ApplicationAdapter {
 				passouCano = true;
 			}
 		}
+		//adicionando variação entre animações//
+		variacao += Gdx.graphics.getDeltaTime() * 10;
+		if(variacao > 3)
+			variacao = 0;
 	}
 
 	private void detectarColisao() {
 
-		//Checando a posição do Passaro e dos canos//
+		//Checando a posiçãoe raio de colisão do Passaro e dos canos//
 		circuloPassaro.set(50 + passaros[0].getWidth() / 2,
 				posicaoInicialVerticalPassaro + passaros[0].getHeight() / 2, passaros[0].getWidth() / 2);
 
@@ -122,7 +141,7 @@ public class Game extends ApplicationAdapter {
 				canoBaixo.getHeight());
 
 		retanguloCanoCima.set(posicaoCanoHorizontal,
-				alturaDispositivo / 2 - canoBaixo.getHeight() - espacoEntreCanos / 2 + posicaoCanoVertical,
+				alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical,
 				canoTopo.getWidth(), canoTopo.getHeight());
 
 		//Checando colisão entre Passaro e canos//
@@ -131,38 +150,46 @@ public class Game extends ApplicationAdapter {
 
 		if(bateuCanoBaixo || bateuCanoCima){
 			Gdx.app.log("Log", "Bateu");
+			estadoJogo = 2;
 		}
 	}
 
 	private void verificaEstadoJogo() {
 
-		//Configurando regra para canos conforme o jogo passa//
-		posicaoCanoHorizontal -= Gdx.graphics.getDeltaTime() *200;
-		if(posicaoCanoHorizontal < -canoBaixo.getHeight()){
-			posicaoCanoHorizontal = larguraDispositivo;
-			posicaoCanoVertical = random.nextInt(400) - 200;
-			passouCano = false;
-		}
-		//adicionando regra de botão ao tocar na tela//
+		//adicionando regra de botão ao tocar na tela variando estados//
 		boolean toqueTela = Gdx.input.justTouched();
-		if(Gdx.input.justTouched()){
-			gravidade = -25;
+		if(estadoJogo == 0) {
+
+			if (Gdx.input.justTouched()) {
+				gravidade = -25;
+				estadoJogo = 1;
+			}
+		}else if(estadoJogo == 1){
+
+				if(Gdx.input.justTouched()) {
+					gravidade = -25;
+				}
+
+				//Configurando regra para canos conforme o jogo passa//
+				posicaoCanoHorizontal -= Gdx.graphics.getDeltaTime() *200;
+				if(posicaoCanoHorizontal < -canoBaixo.getHeight()){
+					posicaoCanoHorizontal = larguraDispositivo;
+					posicaoCanoVertical = random.nextInt(400) - 200;
+					passouCano = false;
+				}
+				if(posicaoInicialVerticalPassaro > 0 || toqueTela)
+					posicaoInicialVerticalPassaro = posicaoInicialVerticalPassaro - gravidade;
+
+				gravidade++;
+			}
+				else if(estadoJogo == 2){
+
+				}
 		}
 
-		if(posicaoInicialVerticalPassaro > 0 || toqueTela)
-			posicaoInicialVerticalPassaro = posicaoInicialVerticalPassaro - gravidade;
 
-		//adicionando variação entre animações//
-		variacao += Gdx.graphics.getDeltaTime() * 10;
 
-		if(variacao > 3)
-			variacao = 0;
-
-		gravidade++;
-
-	}
-
-	private void desenharTextura() {
+	private void desenharTextura(){
 		//Definindo posição e formato dos objetos//
 		batch.begin();
 
@@ -173,6 +200,12 @@ public class Game extends ApplicationAdapter {
 		batch.draw(canoTopo, posicaoCanoHorizontal, alturaDispositivo / 2 + espacoEntreCanos / 2 + posicaoCanoVertical);
 		textoPontuacao.draw(batch, String.valueOf(pontos), larguraDispositivo / 2, alturaDispositivo - 100);
 
+		//Apos colisão, carrega mensagens pós gameOver//
+		if(estadoJogo == 2){
+			batch.draw(gameOver,larguraDispositivo / 2 - gameOver.getWidth() / 2, alturaDispositivo / 2);
+			textoReiniciar.draw(batch, "TOQUE NA TELA PARA REINICIAR!", larguraDispositivo / 2 - 350, alturaDispositivo / 2 - gameOver.getHeight() / 2);
+			textoMelhorPontuacao.draw(batch, "SUA MELHOR PONTUAÇÃO É : 0 PONTOS!", larguraDispositivo / 2 - 450, alturaDispositivo / 2 - gameOver.getHeight());
+		}
 		batch.end();
 	}
 
